@@ -258,11 +258,20 @@ Resources:
       ServiceRoleArn: !GetAtt CodeDeployRole.Arn
       DeploymentConfigName: CodeDeployDefault.OneAtATime
       DeploymentGroupName: CodeDeployGroupName
+      DeploymentStyle:
+        DeploymentOption: WITHOUT_TRAFFIC_CONTROL
+        DeploymentType: IN_PLACE
       AutoRollbackConfiguration:
         Enabled: true
         Events:
           - DEPLOYMENT_FAILURE
           - DEPLOYMENT_STOP_ON_REQUEST
+      Ec2TagSet:
+        Ec2TagSetList:
+            - Ec2TagGroup:
+              - Key: Environment
+                Value: Production
+                Type: KEY_AND_VALUE
 
   WebappDeploymentBucket:
     Type: AWS::S3::Bucket
@@ -302,8 +311,9 @@ Resources:
                   - ec2:RunInstances
                   - ec2:CreateTags
                   - iam:PassRole
-                Resource:
-                  - !Sub 'arn:${AWS::Partition}:codedeploy:*:${AWS::AccountId}:*'
+                  - s3:Get*
+                  - s3:List*
+                Resource: "*"
 
   WebappInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -323,6 +333,8 @@ Resources:
       Tags:
         - Key: Name
           Value: EC2Instance1
+        - Key: Environment
+          Value: Production
       UserData: !Base64 |
         #!/bin/bash
         yum  install -y java-1.8.0-openjdk-devel wget
@@ -398,6 +410,8 @@ Resources:
       Tags:
         - Key: Name
           Value: EC2Instance2
+        - Key: Environment
+          Value: Production
       UserData: !Base64 | 
         #!/bin/bash
         yum  install -y java-1.8.0-openjdk-devel wget
@@ -462,6 +476,10 @@ Resources:
         systemctl start amazon-ssm-agent
 
 Outputs:
+
+  LoadBalancerDNSName:
+    Description: DNS Name of the Load Balancer
+    Value: !GetAtt LoadBalancer.DNSName
 
   WebappUrl:
     Description: Webapp URL
