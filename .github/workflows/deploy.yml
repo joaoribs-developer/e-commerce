@@ -4,7 +4,7 @@ on: push
 #  workflow_dispatch: {}
 
 env:
-  application folder: spring-boot-hello-world-example
+  applicationfolder: spring-boot-hello-world-example
   AWS_REGION: us-east-1
   S3BUCKET: stack-deploy-webappdeploymentbucket-kqqkkwct3nql
 
