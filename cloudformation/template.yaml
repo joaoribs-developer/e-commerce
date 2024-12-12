@@ -1,6 +1,21 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Template com VPC, EC2, Load Balancer e restrição de acesso.
-
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      - Label:
+          default: "VPC Configurations"
+        Parameters:
+          - VpcCIDR
+          - PublicSubnet1CIDR
+          - PublicSubnet2CIDR
+          - PrivateSubnet1CIDR
+          - PrivateSubnet2CIDR
+      - Label:
+          default: "Github configurations"
+        Parameters:
+          - GithubRepoName
+          - ThumbprintList
 Parameters:
   VpcCIDR:
     Description: Please enter the IP range (CIDR notation) for this VPC
@@ -17,34 +32,59 @@ Parameters:
     Type: String
     Default: 10.192.11.0/24
 
-#  PrivateSubnet1CIDR:
-#    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
-#    Type: String
-#    Default: 10.192.20.0/24
-#
-#  PrivateSubnet2CIDR:
-#    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
-#    Type: String
-#    Default: 10.192.21.0/24
+  PrivateSubnet1CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    Default: 10.192.20.0/24
+
+  PrivateSubnet2CIDR:
+    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    Default: 10.192.21.0/24
 
   ImageId:
     Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
     Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
     Description: The Amazon EC2 Linux instance Amazon Machine Image (AMI), which designates the configuration of the new instance.
+
   InstanceType:
     Type: String
     Default: t2.micro
     Description: The type of Amazon EC2 Linux instances that will be launched for this project.
+
   ThumbprintList:
     Type: String
     Default: 6938fd4d98bab03faadb97b34396831e3780aea1
     Description: A thumbprint of an Open ID Connector is a SHA1 hash of the public certificate of the host
+
   GithubRepoName:
     Type: String
     Description: GitHub repository name Ex-TestUser/TestCodeDeploy
     Default: 'joaoribs-developer/e-commerce'
 
+#  KeyName:
+#    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
+#    Type: 'AWS::EC2::KeyPair::KeyName'
+#    ConstraintDescription: Can contain only ASCII characters.
+#    Default: my-ssh-key
+
+  SSHLocation:
+    Description: The IP address range that can be used to SSH to the EC2 instances
+    Type: String
+    MinLength: '9'
+    MaxLength: '18'
+    Default: 192.168.1.15/32
+    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
+    ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x
+
 Resources:
+#  KeyPair:
+#    Type: AWS::EC2::KeyPair
+#    Properties:
+#      KeyName: KeyPair
+#      PublicKeyMaterial: |
+#        ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCxsEtnRDzmUGara3Hx6dtywu3n6A3ZtnFC+H2M0W0mpq6NC7p8hxyOw5gmzljEIxsI2YzjsE2HoCADtLBUqgJ4GOz4Za+ujoIy8lYhnLPNxlUQGNQKAOCiRe33HOF9TYQ9G7tILJlZZA/HuuLdA3yGhFbvWCAejTmFYYqXqpY/vObhcve9Z5cpoaDTnZnaUCC2lO9RnElWpF4vpb6EXNEp6M0XCIsAi9dY7hE3LXefMrP91GPHSgfVwYQE8gpxqChds8AyP3/K3KswR/jzAuIeJ46HDfXpXAub7ot494mQUq/T/kHjRrkexBIaGYtn2XxKP8VSGUoUGB6w5NhUJd61C5lzu63vFIghosEWRmVk4o07O+8oBfdWQc1OluSunnm+gJM5xbDS6vpHji/fARbn2MX3ni7OEqDURtERoE5WSKCbbdt291O9rNs8KOuXDt9tcjkewSNSTTsee66XtROmdZbGXZUFGivDPrQbZwxCnyeGvBef0+SlF/XviCDJ3tcbKtdW1khb34xr4wJpbO8z/FSQKvMsxP7Odz9V4nXBIcOpxPH86EzwNCnETBWO8XoH0B442Zxn+UuEcG+XxNbv5C6IVtIuQXcu1Jev4sFVtnRCPPybf85Rdkc1sPXuwmI+YahJ5TG65nMqFZeZNIqsOdriJnbEeSgjPXuoALnQhQ==
+
   VPC:
     Type: AWS::EC2::VPC
     Properties:
@@ -54,6 +94,15 @@ Resources:
       Tags:
         - Key: Name
           Value: VPC
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  InternetGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
 
   PublicSubnet1:
     Type: AWS::EC2::Subnet
@@ -77,38 +126,100 @@ Resources:
         - Key: Name
           Value: PublicSubnet2
 
-  InternetGateway:
-    Type: AWS::EC2::InternetGateway
-
-  AttachGateway:
-    Type: AWS::EC2::VPCGatewayAttachment
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
     Properties:
       VpcId: !Ref VPC
-      InternetGatewayId: !Ref InternetGateway
+      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: Private Subnet (AZ1)
+
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
+      CidrBlock: !Ref PrivateSubnet2CIDR
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: Private Subnet (AZ2)
+
+  NatGateway1EIP:
+    Type: AWS::EC2::EIP
+    DependsOn: InternetGatewayAttachment
+    Properties:
+      Domain: vpc
+
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatGateway1EIP.AllocationId
+      SubnetId: !Ref PublicSubnet1
 
   PublicRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
 
-  PublicRoute:
+  DefaultPublicRoute:
     Type: AWS::EC2::Route
+    DependsOn: InternetGatewayAttachment
     Properties:
       RouteTableId: !Ref PublicRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       GatewayId: !Ref InternetGateway
 
-  SubnetRouteTableAssociation1:
+  PublicSubnet1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnet1
       RouteTableId: !Ref PublicRouteTable
 
-  SubnetRouteTableAssociation2:
+  PublicSubnet2RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       SubnetId: !Ref PublicSubnet2
       RouteTableId: !Ref PublicRouteTable
+
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  DefaultPrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      SubnetId: !Ref PrivateSubnet1
+
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  DefaultPrivateRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      SubnetId: !Ref PrivateSubnet2
 
   LoadBalancerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -135,6 +246,10 @@ Resources:
           FromPort: 80
           ToPort: 80
           SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: !Ref SSHLocation
 
   LoadBalancer:
     Type: AWS::ElasticLoadBalancingV2::LoadBalancer
@@ -200,8 +315,10 @@ Resources:
             Statement:
               - Effect: "Allow"
                 Action:
-                  - "s3:getObject"
-                Resource: !Sub arn:${AWS::Partition}:s3:::${WebappDeploymentBucket}/*
+                  - 'ec2:*'
+                  - 's3:*"'
+                  - 'codedeploy:*'
+                Resource: '*'
 
   IDCProvider:
     Type: AWS::IAM::OIDCProvider
@@ -240,12 +357,13 @@ Resources:
                   - 'codedeploy:CreateDeployment'
                   - 'codedeploy:RegisterApplicationRevision'
                   - 'codedeploy:List*'
-                Resource:
-                  - !Sub 'arn:${AWS::Partition}:codedeploy:*:${AWS::AccountId}:*'
+                Resource: '*'
               - Effect: Allow
                 Action:
-                  - 's3:putObject'
-                Resource: !Sub arn:${AWS::Partition}:s3:::${WebappDeploymentBucket}/*
+                  - 'ec2:*'
+                  - 's3:*'
+                  - 'codedeploy:*'
+                Resource: '*'
 
   WebappApplication:
     Type: AWS::CodeDeploy::Application
@@ -310,12 +428,10 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
-                  - ec2:RunInstances
-                  - ec2:CreateTags
-                  - iam:PassRole
-                  - s3:Get*
-                  - s3:List*
-                Resource: "*"
+                  - 'ec2:*'
+                  - 's3:*'
+                  - 'codedeploy:*'
+                Resource: '*'
 
   WebappInstanceProfile:
     Type: AWS::IAM::InstanceProfile
@@ -328,9 +444,10 @@ Resources:
     Properties:
       InstanceType: !Ref InstanceType
       ImageId: !Ref ImageId
-      SubnetId: !Ref PublicSubnet1
+      SubnetId: !Ref PrivateSubnet1
       SecurityGroupIds:
         - !Ref EC2InstanceSecurityGroup
+#      KeyName: !Ref KeyPair
       IamInstanceProfile: !Ref WebappInstanceProfile
       Tags:
         - Key: Name
@@ -405,9 +522,10 @@ Resources:
     Properties:
       InstanceType: !Ref InstanceType
       ImageId: !Ref ImageId
-      SubnetId: !Ref PublicSubnet2
+      SubnetId: !Ref PrivateSubnet2
       SecurityGroupIds:
         - !Ref EC2InstanceSecurityGroup
+#      KeyName: !Ref KeyPair
       IamInstanceProfile: !Ref WebappInstanceProfile
       Tags:
         - Key: Name
