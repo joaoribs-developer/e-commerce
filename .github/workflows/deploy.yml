@@ -42,6 +42,18 @@ jobs:
       - name: Upload Artifact to s3
         working-directory: ${{ env.applicationfolder }}/target
         run: aws s3 cp *.war s3://${{ env.S3BUCKET }}/
+
+      - name: Prepare Deployment Package
+        run: |
+          mkdir -p deployment-package
+          cp appspec.yml deployment-package/
+          cp -r .github/scripts deployment-package/
+          cp ${{ env.applicationfolder }}/target/*.war deployment-package/
+          cd deployment-package
+          zip -r ../deployment-package.zip .
+
+      - name: Upload Deployment Bundle to S3
+        run: aws s3 cp deployment-package.zip s3://${{ env.S3BUCKET }}/
         
   deploy:
     needs: build
@@ -60,4 +72,4 @@ jobs:
     - run: |
         echo "Deploying branch ${{ env.GITHUB_REF }} to ${{ github.event.inputs.environment }}"
         commit_hash=`git rev-parse HEAD`
-        aws deploy create-deployment --application-name CodeDeployAppNameWithASG --deployment-group-name CodeDeployGroupName --s3-location bucket=stack-deploy-webappdeploymentbucket-iczhqgtfjoaa,key=SpringBootHelloWorldExampleApplication.war,bundleType=zip --ignore-application-stop-failures
+        aws deploy create-deployment --application-name CodeDeployAppNameWithASG --deployment-group-name CodeDeployGroupName --s3-location bucket=${{ env.S3BUCKET }},key=deployment-package.zip,bundleType=zip --ignore-application-stop-failures
