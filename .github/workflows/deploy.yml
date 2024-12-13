@@ -47,7 +47,7 @@ jobs:
         run: |
           mkdir -p deployment-package
           cp appspec.yml deployment-package/
-          cp -r aws/scripts/* deployment-package/aws/scripts
+          cp -r aws/ deployment-package/
           cp ${{ env.applicationfolder }}/target/*.war deployment-package/
           cd deployment-package
           zip -r ../deployment-package.zip .
