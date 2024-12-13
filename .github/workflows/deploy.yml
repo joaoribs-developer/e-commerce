@@ -65,9 +65,4 @@ jobs:
         run: |
           echo "Deploying branch ${{ github.ref_name }} to ${{ github.event.inputs.environment }}"
           commit_hash=$(git rev-parse HEAD)
-          aws deploy create-deployment \
-          --application-name CodeDeployAppNameWithASG \
-          --deployment-group-name CodeDeployGroupName \
-          --s3-location bucket=stack-deploy-webappdeploymentbucket-dgdnmhnjrc9e,key=SpringBootHelloWorldExampleApplication.war,bundleType=war \
-          --ignore-application-stop-failures \
-          --region ${{ env.AWS_REGION }}
+          aws deploy create-deployment --application-name CodeDeployAppNameWithASG --deployment-group-name CodeDeployGroupName --s3-location bucket=stack-deploy-webappdeploymentbucket-dgdnmhnjrc9e,key=SpringBootHelloWorldExampleApplication.war,bundleType=war --ignore-application-stop-failures
