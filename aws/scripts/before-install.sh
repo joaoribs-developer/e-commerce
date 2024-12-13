@@ -3,7 +3,7 @@ set -xe
 
 # Delete the old  directory as needed.
 if [ -d /usr/local/codedeployresources ]; then
-    rm -rf /usr/local/codedeployresources/
+    sudo rm -rf /usr/local/codedeployresources/
 fi
 
 sudo mkdir -vp /usr/local/codedeployresources
