@@ -505,14 +505,14 @@ Resources:
         systemctl start tomcat.service
         systemctl enable tomcat.service
         systemctl status tomcat.service
-        yum install ruby -y
-        wget https://aws-codedeploy-us-east-1.s3.us-east-1.amazonaws.com/latest/install
-        chmod +x ./install
-        ./install auto
+        sudo yum install ruby -y
+        sudo wget https://aws-codedeploy-us-east-2.s3.us-east-2.amazonaws.com/latest/install
+        sudo chmod +x ./install
+        sudo yum install -y https://aws-codedeploy-us-east-2.s3.us-east-2.amazonaws.com/latest/codedeploy-agent.noarch.rpm
         cd /tmp
-        yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
-        systemctl enable amazon-ssm-agent
-        systemctl start amazon-ssm-agent
+        sudo yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+        sudo systemctl enable amazon-ssm-agent
+        sudo systemctl start amazon-ssm-agent
 
   EC2Instance2:
     Type: AWS::EC2::Instance
@@ -583,14 +583,15 @@ Resources:
         systemctl start tomcat.service
         systemctl enable tomcat.service
         systemctl status tomcat.service
-        yum install ruby -y
-        wget https://aws-codedeploy-us-east-1.s3.us-east-1.amazonaws.com/latest/install
-        chmod +x ./install
-        ./install auto
+        sudo yum install ruby -y
+        sudo wget https://aws-codedeploy-us-east-1.s3.us-east-1.amazonaws.com/latest/install
+        sudo chmod +x ./install
+        sudo yum install -y https://aws-codedeploy-us-east-1.s3.us-east-1.amazonaws.com/latest/codedeploy-agent.noarch.rpm
         cd /tmp
-        yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
-        systemctl enable amazon-ssm-agent
-        systemctl start amazon-ssm-agent
+        sudo yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+        sudo systemctl enable amazon-ssm-agent
+        sudo systemctl start amazon-ssm-agent
+
 
 Outputs:
 
