@@ -7,4 +7,4 @@ aws s3 cp s3://stack-deploy-webappdeploymentbucket-dgdnmhnjrc9e/SpringBootHelloW
 
 
 # Ensure the ownership permissions are correct.
-chown -R tomcat:tomcat /usr/local/tomcat9/webapps
+sudo chown -R tomcat:tomcat /usr/local/tomcat9/webapps

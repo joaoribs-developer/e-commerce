@@ -6,4 +6,4 @@ if [ -d /usr/local/codedeployresources ]; then
     rm -rf /usr/local/codedeployresources/
 fi
 
-mkdir -vp /usr/local/codedeployresources
+sudo mkdir -vp /usr/local/codedeployresources

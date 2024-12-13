@@ -14,7 +14,7 @@ do
     exit 0
   fi
   echo "Attempt to curl endpoint returned HTTP Code $HTTP_CODE. Backing off and retrying."
-  sleep $SLEEP_TIME
+  sudo sleep $SLEEP_TIME
 done
 echo "Server did not come up after expected time. Failing."
 exit 1
