@@ -68,6 +68,6 @@ jobs:
           aws deploy create-deployment \
             --application-name CodeDeployAppNameWithASG \
             --deployment-group-name CodeDeployGroupName \
-            --revision "revisionType=S3,s3Location={bucket=${{ env.AWS_REGION }},key=SpringBootHelloWorldExampleApplication.war,bundleType=war}" \
+            --revision "revisionType=S3,s3Location={bucket=stack-deploy-webappdeploymentbucket-dgdnmhnjrc9e,key=SpringBootHelloWorldExampleApplication.war,bundleType=war}" \
             --ignore-application-stop-failures \
             --region ${{ env.AWS_REGION }}
