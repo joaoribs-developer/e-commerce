@@ -63,6 +63,7 @@ jobs:
 
       - name: Deploy to CodeDeploy
         run: |
-          echo "Deploying branch ${{ github.ref_name }} to ${{ github.event.inputs.environment }}"
-          commit_hash=$(git rev-parse HEAD)
+          echo "Deploying branch ${{ env.GITHUB_REF }} to ${{ github.event.inputs.environment }}"
+          commit_hash=`git rev-parse HEAD`
+          echo "Deploying branch"
           aws deploy create-deployment --application-name CodeDeployAppNameWithASG --deployment-group-name CodeDeployGroupName --s3-location bucket=stack-deploy-webappdeploymentbucket-dgdnmhnjrc9e,key=SpringBootHelloWorldExampleApplication.war,bundleType=war --ignore-application-stop-failures
