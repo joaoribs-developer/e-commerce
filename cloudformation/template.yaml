@@ -1,56 +1,59 @@
-AWSTemplateFormatVersion: "2010-09-09"
-Description: Template com VPC, EC2, Load Balancer e restrição de acesso.
-Metadata:
-  AWS::CloudFormation::Interface:
-    ParameterGroups:
-      - Label:
-          default: "VPC Configurations"
-        Parameters:
-          - VpcCIDR
-          - PublicSubnet1CIDR
-          - PublicSubnet2CIDR
-          - PrivateSubnet1CIDR
-          - PrivateSubnet2CIDR
-      - Label:
-          default: "Github configurations"
-        Parameters:
-          - GithubRepoName
-          - ThumbprintList
+AWSTemplateFormatVersion: 2010-09-09
+Description: Part 2 - Add a database with CloudFormation
+
 Parameters:
-  VpcCIDR:
-    Description: Please enter the IP range (CIDR notation) for this VPC
+  AvailabilityZone:
+    Type: AWS::EC2::AvailabilityZone::Name
+    Default: 'us-east-1a'
+  EnvironmentType:
+    Description: 'Specify the Environment type of the stack.'
     Type: String
-    Default: 10.192.0.0/16
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - prod
+  AmiID:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Description: 'The ID of the AMI.'
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
 
-  PublicSubnet1CIDR:
-    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+  DBInstanceIdentifier:
     Type: String
-    Default: 10.192.10.0/24
-
-  PublicSubnet2CIDR:
-    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Default: 'webapp-db'
+  DBUsername:
+    NoEcho: 'true'
+    Description: Username for Postgresql database access
     Type: String
-    Default: 10.192.11.0/24
+    MinLength: '1'
+    MaxLength: '16'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters.
+    Default: 'postgres'
 
-  PublicSubnet3CIDR:
-    Description: Please enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+  DBPassword:
+    NoEcho: 'true'
+    Description: Password for Postgresql database access
     Type: String
-    Default: 10.192.20.0/24
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]*'
+    ConstraintDescription: Must contain only alphanumeric characters.
+    Default: '123456789'
 
-  PublicSubnet4CIDR:
-    Description: Please enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+  TagKey:
+    Description: The EC2 tag key that identifies this as a target for deployments.
     Type: String
-    Default: 10.192.21.0/24
+    Default: CodeDeployTag
+    AllowedPattern: '[\x20-\x7E]*'
+    ConstraintDescription: Can contain only ASCII characters.
 
-  ImageId:
-    Type: 'AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>'
-    Default: '/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2'
-    Description: The Amazon EC2 Linux instance Amazon Machine Image (AMI), which designates the configuration of the new instance.
-
-  InstanceType:
+  TagValue:
+    Description: The EC2 tag value that identifies this as a target for deployments.
     Type: String
-    Default: t2.micro
-    Description: The type of Amazon EC2 Linux instances that will be launched for this project.
+    Default: CodeDeployDemo
+    AllowedPattern: '[\x20-\x7E]*'
+    ConstraintDescription: Can contain only ASCII characters.
 
   ThumbprintList:
     Type: String
@@ -62,195 +65,156 @@ Parameters:
     Description: GitHub repository name Ex-TestUser/TestCodeDeploy
     Default: 'joaoribs-developer/e-commerce'
 
-#  KeyName:
-#    Description: Name of an existing EC2 KeyPair to enable SSH access to the instance
-#    Type: 'AWS::EC2::KeyPair::KeyName'
-#    ConstraintDescription: Can contain only ASCII characters.
-#    Default: my-ssh-key
-
-  SSHLocation:
-    Description: The IP address range that can be used to SSH to the EC2 instances
-    Type: String
-    MinLength: '9'
-    MaxLength: '18'
-    Default: 192.168.1.15/32
-    AllowedPattern: '(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})'
-    ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x
+Mappings:
+  EnvironmentToInstanceType:
+    dev:
+      InstanceType: t2.micro
+    test:
+      InstanceType: t2.micro
+    prod:
+      InstanceType: t2.micro
 
 Resources:
-#  KeyPair:
-#    Type: AWS::EC2::KeyPair
-#    Properties:
-#      KeyName: KeyPair
-#      PublicKeyMaterial: |
-#        ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCxsEtnRDzmUGara3Hx6dtywu3n6A3ZtnFC+H2M0W0mpq6NC7p8hxyOw5gmzljEIxsI2YzjsE2HoCADtLBUqgJ4GOz4Za+ujoIy8lYhnLPNxlUQGNQKAOCiRe33HOF9TYQ9G7tILJlZZA/HuuLdA3yGhFbvWCAejTmFYYqXqpY/vObhcve9Z5cpoaDTnZnaUCC2lO9RnElWpF4vpb6EXNEp6M0XCIsAi9dY7hE3LXefMrP91GPHSgfVwYQE8gpxqChds8AyP3/K3KswR/jzAuIeJ46HDfXpXAub7ot494mQUq/T/kHjRrkexBIaGYtn2XxKP8VSGUoUGB6w5NhUJd61C5lzu63vFIghosEWRmVk4o07O+8oBfdWQc1OluSunnm+gJM5xbDS6vpHji/fARbn2MX3ni7OEqDURtERoE5WSKCbbdt291O9rNs8KOuXDt9tcjkewSNSTTsee66XtROmdZbGXZUFGivDPrQbZwxCnyeGvBef0+SlF/XviCDJ3tcbKtdW1khb34xr4wJpbO8z/FSQKvMsxP7Odz9V4nXBIcOpxPH86EzwNCnETBWO8XoH0B442Zxn+UuEcG+XxNbv5C6IVtIuQXcu1Jev4sFVtnRCPPybf85Rdkc1sPXuwmI+YahJ5TG65nMqFZeZNIqsOdriJnbEeSgjPXuoALnQhQ==
-
-  VPC:
-    Type: AWS::EC2::VPC
+  ImportedKeyPair:
+    Type: AWS::EC2::KeyPair
     Properties:
-      CidrBlock: !Ref VpcCIDR
-      EnableDnsSupport: true
-      EnableDnsHostnames: true
+      KeyName: my-ssh-key
+      PublicKeyMaterial: ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCxsEtnRDzmUGara3Hx6dtywu3n6A3ZtnFC+H2M0W0mpq6NC7p8hxyOw5gmzljEIxsI2YzjsE2HoCADtLBUqgJ4GOz4Za+ujoIy8lYhnLPNxlUQGNQKAOCiRe33HOF9TYQ9G7tILJlZZA/HuuLdA3yGhFbvWCAejTmFYYqXqpY/vObhcve9Z5cpoaDTnZnaUCC2lO9RnElWpF4vpb6EXNEp6M0XCIsAi9dY7hE3LXefMrP91GPHSgfVwYQE8gpxqChds8AyP3/K3KswR/jzAuIeJ46HDfXpXAub7ot494mQUq/T/kHjRrkexBIaGYtn2XxKP8VSGUoUGB6w5NhUJd61C5lzu63vFIghosEWRmVk4o07O+8oBfdWQc1OluSunnm+gJM5xbDS6vpHji/fARbn2MX3ni7OEqDURtERoE5WSKCbbdt291O9rNs8KOuXDt9tcjkewSNSTTsee66XtROmdZbGXZUFGivDPrQbZwxCnyeGvBef0+SlF/XviCDJ3tcbKtdW1khb34xr4wJpbO8z/FSQKvMsxP7Odz9V4nXBIcOpxPH86EzwNCnETBWO8XoH0B442Zxn+UuEcG+XxNbv5C6IVtIuQXcu1Jev4sFVtnRCPPybf85Rdkc1sPXuwmI+YahJ5TG65nMqFZeZNIqsOdriJnbEeSgjPXuoALnQhQ==
+
+  WebAppInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      AvailabilityZone: !Ref AvailabilityZone
+      ImageId: !Ref AmiID
+      InstanceType: !FindInMap [EnvironmentToInstanceType, !Ref EnvironmentType, InstanceType]
+      KeyName: !Ref ImportedKeyPair
+      SecurityGroupIds:
+        - !Ref WebAppSecurityGroup
+      UserData: !Base64 |
+        #!/bin/bash
+        yum  install -y java-1.8.0-openjdk-devel wget
+        java -version
+        cd /usr/local
+        wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.43/bin/apache-tomcat-9.0.43.zip
+        wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.43/bin/apache-tomcat-9.0.43.zip.asc
+        wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.43/bin/apache-tomcat-9.0.43.zip.sha512
+
+        # verify hash / are these two outputs the same
+        cat apache-tomcat-9.0.43.zip.sha512
+        sha512sum apache-tomcat-9.0.43.zip
+
+        gpg --keyserver pgpkeys.mit.edu --recv-key A9C5DF4D22E99998D9875A5110C01C5A2F6059E7
+        gpg --verify apache-tomcat-9.0.43.zip.asc apache-tomcat-9.0.43.zip
+
+        # if hash and signature are ok:
+        unzip apache-tomcat-9.0.43.zip
+        mv apache-tomcat-9.0.43 tomcat9
+        echo 'JAVA_OPTS="$JAVA_OPTS -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv4Addresses=true "' > /usr/local/tomcat9/bin/setenv.sh
+        ls -la tomcat9/
+        useradd -r tomcat
+        chown -R tomcat:tomcat /usr/local/tomcat9
+        ls -l /usr/local/tomcat9
+
+        echo "[Unit]
+        Description=Apache Tomcat Server
+        After=syslog.target network.target
+
+        [Service]
+        Type=forking
+        User=tomcat
+        Group=tomcat
+
+        Environment=CATALINA_PID=/usr/local/tomcat9/temp/tomcat.pid
+        Environment=CATALINA_HOME=/usr/local/tomcat9
+        Environment=CATALINA_BASE=/usr/local/tomcat9
+
+        ExecStart=/usr/local/tomcat9/bin/catalina.sh start
+        ExecStop=/usr/local/tomcat9/bin/catalina.sh stop
+
+        RestartSec=10
+        Restart=always
+        [Install]
+        WantedBy=multi-user.target" > /etc/systemd/system/tomcat.service
+
+        # firewall-cmd --zone=public --permanent --add-port=8080/tcp
+        # firewall-cmd --zone=public --permanent --add-port=8443/tcp
+        # firewall-cmd --reload
+        cd /usr/local/tomcat9/bin && chmod +x catalina.sh
+        systemctl daemon-reload
+        systemctl start tomcat.service
+        systemctl enable tomcat.service
+        systemctl status tomcat.service
+        sudo yum install ruby -y
+        sudo wget https://aws-codedeploy-us-east-2.s3.us-east-2.amazonaws.com/latest/install
+        sudo chmod +x ./install
+        sudo yum install -y https://aws-codedeploy-us-east-2.s3.us-east-2.amazonaws.com/latest/codedeploy-agent.noarch.rpm
+        cd /tmp
+        sudo yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
+        sudo systemctl enable amazon-ssm-agent
+        sudo systemctl start amazon-ssm-agent
       Tags:
-        - Key: Name
-          Value: VPC
+        - Key: !Ref 'TagKey'
+          Value: !Ref 'TagValue'
+      IamInstanceProfile: !Ref WebappInstanceProfile
 
-  InternetGateway:
-    Type: AWS::EC2::InternetGateway
-
-  InternetGatewayAttachment:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      VpcId: !Ref VPC
-      InternetGatewayId: !Ref InternetGateway
-
-  PublicSubnet1:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: !Ref PublicSubnet1CIDR
-      MapPublicIpOnLaunch: true
-      AvailabilityZone: !Select [ 0, !GetAZs "" ]
-      Tags:
-        - Key: Name
-          Value: PublicSubnet1
-
-  PublicSubnet2:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: !Ref PublicSubnet2CIDR
-      MapPublicIpOnLaunch: true
-      AvailabilityZone: !Select [ 1, !GetAZs "" ]
-      Tags:
-        - Key: Name
-          Value: PublicSubnet2
-
-  PublicSubnet3:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
-      CidrBlock: !Ref PublicSubnet3CIDR
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: Private Subnet (AZ1)
-
-  PublicSubnet4:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
-      CidrBlock: !Ref PublicSubnet4CIDR
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: Private Subnet (AZ2)
-
-  PublicRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC
-
-  DefaultPublicRoute:
-    Type: AWS::EC2::Route
-    DependsOn: InternetGatewayAttachment
-    Properties:
-      RouteTableId: !Ref PublicRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref InternetGateway
-
-  PublicSubnet1RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnet1
-      RouteTableId: !Ref PublicRouteTable
-
-  PublicSubnet2RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnet2
-      RouteTableId: !Ref PublicRouteTable
-
-  PublicSubnet3RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnet3
-      RouteTableId: !Ref PublicRouteTable
-
-  PublicSubnet4RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnet4
-      RouteTableId: !Ref PublicRouteTable
-
-  LoadBalancerSecurityGroup:
+  WebAppSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow HTTP and HTTPS traffic
-      VpcId: !Ref VPC
+      GroupName: !Join [ '-', [ webapp-security-group, !Ref EnvironmentType ] ]
+      GroupDescription: 'Allow HTTP/HTTPS and SSH inbound and outbound traffic'
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 8080
-          ToPort: 8080
+          FromPort: 80
+          ToPort: 80
           CidrIp: 0.0.0.0/0
-      SecurityGroupEgress:
-        - IpProtocol: '-1'
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
           CidrIp: 0.0.0.0/0
 
-  EC2InstanceSecurityGroup:
+  WebAppEIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref WebAppInstance
+      Tags:
+        - Key: Name
+          Value: !Join [ '-', [ webapp-eip, !Ref EnvironmentType ] ]
+
+  WebAppDatabase:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Ref DBInstanceIdentifier
+      VPCSecurityGroups:
+        - !GetAtt DBEC2SecurityGroup.GroupId
+      AllocatedStorage: '5'
+      DBInstanceClass: db.t3.micro
+      Engine: postgres
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      Tags:
+        - Key: Name
+          Value: !Join [ '-', [ webapp-rds, !Ref EnvironmentType ] ]
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+
+  DBEC2SecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
-      GroupDescription: Allow traffic only from Load Balancer
-      VpcId: !Ref VPC
+      GroupName: !Join [ '-', [ webapp-db-security-group, !Ref EnvironmentType ] ]
+      GroupDescription: Allow postgres inbound traffic
       SecurityGroupIngress:
         - IpProtocol: tcp
-          FromPort: 8080
-          ToPort: 8080
-          SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
-      SecurityGroupEgress:
-        - IpProtocol: '-1'
-          CidrIp: 0.0.0.0/0
-
-  LoadBalancer:
-    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-    Properties:
-      Name: LoadBalancer
-      Subnets:
-        - !Ref PublicSubnet1
-        - !Ref PublicSubnet2
-      SecurityGroups:
-        - !Ref LoadBalancerSecurityGroup
-      Scheme: internet-facing
-
-  TargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      Name: TargetGroup
-      VpcId: !Ref VPC
-      Port: 8080
-      Protocol: HTTP
-      TargetType: instance
-      HealthCheckIntervalSeconds: 30
-      HealthCheckPath: /
-      HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 5
-      HealthyThresholdCount: 5
-      UnhealthyThresholdCount: 2
-      Targets:
-        - Id: !Ref EC2Instance1
-        - Id: !Ref EC2Instance2
-
-  Listener:
-    Type: AWS::ElasticLoadBalancingV2::Listener
-    Properties:
-      LoadBalancerArn: !Ref LoadBalancer
-      Protocol: HTTP
-      Port: 8080
-      DefaultActions:
-        - Type: forward
-          TargetGroupArn: !Ref TargetGroup
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupName: !Ref WebAppSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Join [ '-', [ webapp-db-security-group, !Ref EnvironmentType ] ]
 
   WebappRole:
     Type: AWS::IAM::Role
@@ -345,12 +309,10 @@ Resources:
         Events:
           - DEPLOYMENT_FAILURE
           - DEPLOYMENT_STOP_ON_REQUEST
-      Ec2TagSet:
-        Ec2TagSetList:
-            - Ec2TagGroup:
-              - Key: Environment
-                Value: Production
-                Type: KEY_AND_VALUE
+      Ec2TagFilters:
+        - Key: !Ref 'TagKey'
+          Value: !Ref 'TagValue'
+          Type: KEY_AND_VALUE
 
   WebappDeploymentBucket:
     Type: AWS::S3::Bucket
@@ -400,168 +362,18 @@ Resources:
       Roles:
         - !Ref WebappRole
 
-  EC2Instance1:
-    Type: AWS::EC2::Instance
-    Properties:
-      InstanceType: !Ref InstanceType
-      ImageId: !Ref ImageId
-      SubnetId: !Ref PublicSubnet3
-      SecurityGroupIds:
-        - !Ref EC2InstanceSecurityGroup
-#      KeyName: !Ref KeyPair
-      IamInstanceProfile: !Ref WebappInstanceProfile
-      Tags:
-        - Key: Name
-          Value: EC2Instance1
-        - Key: Environment
-          Value: Production
-      UserData: !Base64 |
-        #!/bin/bash
-        yum  install -y java-1.8.0-openjdk-devel wget
-        java -version
-        cd /usr/local
-        wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.43/bin/apache-tomcat-9.0.43.zip
-        wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.43/bin/apache-tomcat-9.0.43.zip.asc
-        wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.43/bin/apache-tomcat-9.0.43.zip.sha512
-
-        # verify hash / are these two outputs the same
-        cat apache-tomcat-9.0.43.zip.sha512
-        sha512sum apache-tomcat-9.0.43.zip
-
-        gpg --keyserver pgpkeys.mit.edu --recv-key A9C5DF4D22E99998D9875A5110C01C5A2F6059E7
-        gpg --verify apache-tomcat-9.0.43.zip.asc apache-tomcat-9.0.43.zip
-
-        # if hash and signature are ok:
-        unzip apache-tomcat-9.0.43.zip
-        mv apache-tomcat-9.0.43 tomcat9
-        echo 'JAVA_OPTS="$JAVA_OPTS -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv4Addresses=true "' > /usr/local/tomcat9/bin/setenv.sh
-        ls -la tomcat9/
-        useradd -r tomcat
-        chown -R tomcat:tomcat /usr/local/tomcat9
-        ls -l /usr/local/tomcat9
-
-        echo "[Unit]
-        Description=Apache Tomcat Server
-        After=syslog.target network.target
-
-        [Service]
-        Type=forking
-        User=tomcat
-        Group=tomcat
-
-        Environment=CATALINA_PID=/usr/local/tomcat9/temp/tomcat.pid
-        Environment=CATALINA_HOME=/usr/local/tomcat9
-        Environment=CATALINA_BASE=/usr/local/tomcat9
-
-        ExecStart=/usr/local/tomcat9/bin/catalina.sh start
-        ExecStop=/usr/local/tomcat9/bin/catalina.sh stop
-
-        RestartSec=10
-        Restart=always
-        [Install]
-        WantedBy=multi-user.target" > /etc/systemd/system/tomcat.service
-
-        # firewall-cmd --zone=public --permanent --add-port=8080/tcp
-        # firewall-cmd --zone=public --permanent --add-port=8443/tcp
-        # firewall-cmd --reload
-        cd /usr/local/tomcat9/bin && chmod +x catalina.sh
-        systemctl daemon-reload
-        systemctl start tomcat.service
-        systemctl enable tomcat.service
-        systemctl status tomcat.service
-        sudo yum install ruby -y
-        sudo wget https://aws-codedeploy-us-east-2.s3.us-east-2.amazonaws.com/latest/install
-        sudo chmod +x ./install
-        sudo yum install -y https://aws-codedeploy-us-east-2.s3.us-east-2.amazonaws.com/latest/codedeploy-agent.noarch.rpm
-        cd /tmp
-        sudo yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
-        sudo systemctl enable amazon-ssm-agent
-        sudo systemctl start amazon-ssm-agent
-
-  EC2Instance2:
-    Type: AWS::EC2::Instance
-    Properties:
-      InstanceType: !Ref InstanceType
-      ImageId: !Ref ImageId
-      SubnetId: !Ref PublicSubnet4
-      SecurityGroupIds:
-        - !Ref EC2InstanceSecurityGroup
-#      KeyName: !Ref KeyPair
-      IamInstanceProfile: !Ref WebappInstanceProfile
-      Tags:
-        - Key: Name
-          Value: EC2Instance2
-        - Key: Environment
-          Value: Production
-      UserData: !Base64 | 
-        #!/bin/bash
-        yum  install -y java-1.8.0-openjdk-devel wget
-        java -version
-        cd /usr/local
-        wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.43/bin/apache-tomcat-9.0.43.zip
-        wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.43/bin/apache-tomcat-9.0.43.zip.asc
-        wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.43/bin/apache-tomcat-9.0.43.zip.sha512
-
-        # verify hash / are these two outputs the same
-        cat apache-tomcat-9.0.43.zip.sha512
-        sha512sum apache-tomcat-9.0.43.zip
-
-        gpg --keyserver pgpkeys.mit.edu --recv-key A9C5DF4D22E99998D9875A5110C01C5A2F6059E7
-        gpg --verify apache-tomcat-9.0.43.zip.asc apache-tomcat-9.0.43.zip
-
-        # if hash and signature are ok:
-        unzip apache-tomcat-9.0.43.zip
-        mv apache-tomcat-9.0.43 tomcat9
-        echo 'JAVA_OPTS="$JAVA_OPTS -Djava.net.preferIPv4Stack=true -Djava.net.preferIPv4Addresses=true "' > /usr/local/tomcat9/bin/setenv.sh
-        ls -la tomcat9/
-        useradd -r tomcat
-        chown -R tomcat:tomcat /usr/local/tomcat9
-        ls -l /usr/local/tomcat9
-
-        echo "[Unit]
-        Description=Apache Tomcat Server
-        After=syslog.target network.target
-
-        [Service]
-        Type=forking
-        User=tomcat
-        Group=tomcat
-
-        Environment=CATALINA_PID=/usr/local/tomcat9/temp/tomcat.pid
-        Environment=CATALINA_HOME=/usr/local/tomcat9
-        Environment=CATALINA_BASE=/usr/local/tomcat9
-
-        ExecStart=/usr/local/tomcat9/bin/catalina.sh start
-        ExecStop=/usr/local/tomcat9/bin/catalina.sh stop
-
-        RestartSec=10
-        Restart=always
-        [Install]
-        WantedBy=multi-user.target" > /etc/systemd/system/tomcat.service
-
-        # firewall-cmd --zone=public --permanent --add-port=8080/tcp
-        # firewall-cmd --zone=public --permanent --add-port=8443/tcp
-        # firewall-cmd --reload
-        cd /usr/local/tomcat9/bin && chmod +x catalina.sh
-        systemctl daemon-reload
-        systemctl start tomcat.service
-        systemctl enable tomcat.service
-        systemctl status tomcat.service
-        sudo yum install ruby -y
-        sudo wget https://aws-codedeploy-us-east-1.s3.us-east-1.amazonaws.com/latest/install
-        sudo chmod +x ./install
-        sudo yum install -y https://aws-codedeploy-us-east-1.s3.us-east-1.amazonaws.com/latest/codedeploy-agent.noarch.rpm
-        cd /tmp
-        sudo yum install -y https://s3.amazonaws.com/ec2-downloads-windows/SSMAgent/latest/linux_amd64/amazon-ssm-agent.rpm
-        sudo systemctl enable amazon-ssm-agent
-        sudo systemctl start amazon-ssm-agent
-
-
 Outputs:
+  WebsiteURL:
+    Value: !Sub http://${WebAppEIP}
+    Description: WebApp URL
 
-  LoadBalancerDNSName:
-    Description: DNS Name of the Load Balancer
-    Value: !GetAtt LoadBalancer.DNSName
+  WebServerPublicDNS:
+    Description: 'Public DNS of EC2 instance'
+    Value: !GetAtt WebAppInstance.PublicDnsName
+
+  WebAppDatabaseEndpoint:
+    Description: 'Connection endpoint for the database'
+    Value: !GetAtt WebAppDatabase.Endpoint.Address
 
   WebappUrl:
     Description: Webapp URL
@@ -569,17 +381,5 @@ Outputs:
       Fn::Join:
         - ''
         - - http://
-          - !GetAtt LoadBalancer.DNSName
+          - !GetAtt WebAppInstance.PublicDnsName
           - ':8080/SpringBootHelloWorldExampleApplication'
-  DeploymentGroup:
-    Description: Webapp Deployment Group
-    Value: !Ref WebappDeploymentGroup
-  DeploymentBucket:
-    Description: Deployment bucket
-    Value: !Ref WebappDeploymentBucket
-  ApplicationName:
-    Description: CodeDeploy Application name
-    Value: !Ref WebappApplication
-  GithubIAMRoleArn:
-    Description: IAM role for GitHub
-    Value: !GetAtt GitHubIAMRole.Arn
