@@ -383,3 +383,7 @@ Outputs:
         - - http://
           - !GetAtt WebAppInstance.PublicDnsName
           - ':8080/SpringBootHelloWorldExampleApplication'
+
+  GithubIAMRoleArn:
+    Description: IAM role for GitHub
+    Value: !GetAtt GitHubIAMRole.Arn
