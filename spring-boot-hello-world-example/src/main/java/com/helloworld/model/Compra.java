@@ -1,18 +1,14 @@
 package com.helloworld.model;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
+import javax.persistence.*;
 import java.time.LocalDateTime;
-import javax.persistence.JoinColumn;
-import javax.persistence.Column;
-
 
 
 @Entity
 public class Compra {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)  // Garante que o valor será gerado automaticamente
     private Long id;
     @ManyToOne
     @JoinColumn(name = "estoqueid")

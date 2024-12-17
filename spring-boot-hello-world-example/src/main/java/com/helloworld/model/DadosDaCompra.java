@@ -9,6 +9,7 @@ import java.time.LocalDateTime;
 public class DadosDaCompra {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)  // Garante que o valor será gerado automaticamente
     private Long id;
     @ManyToOne
     @JoinColumn(name = "compraid")

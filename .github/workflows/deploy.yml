@@ -6,7 +6,7 @@ on: push
 env:
   applicationfolder: spring-boot-hello-world-example
   AWS_REGION: us-east-1
-  S3BUCKET: ecommerce-stack-webappdeploymentbucket-dzdplhquuvsa
+  S3BUCKET: ecommerce-stack-webappdeploymentbucket-f17esnryw6au
 
 
 jobs:

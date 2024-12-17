@@ -6,6 +6,7 @@ import javax.persistence.*;
 public class Produto {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)  // Garante que o valor será gerado automaticamente
     private Long id;
     private String nome;
     private String descricao;

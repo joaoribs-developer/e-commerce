@@ -2,6 +2,5 @@
 set -xe
 
   # Maven is used to build  and create a war file.
-  mvn -Dmaven.test.skip=true clean install
-
+  mvn -Dspring-boot.run.profiles=remote -Dmaven.test.skip=true clean install
 

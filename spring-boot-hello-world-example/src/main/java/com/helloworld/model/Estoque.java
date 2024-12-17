@@ -1,15 +1,13 @@
 package com.helloworld.model;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.ManyToOne;
-import javax.persistence.JoinColumn;
+import javax.persistence.*;
 
 
 @Entity
 public class Estoque {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)  // Garante que o valor será gerado automaticamente
     private Long id;
     @ManyToOne()
     @JoinColumn(name = "productid")
