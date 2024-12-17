@@ -14,11 +14,26 @@ import org.springframework.context.annotation.Lazy;
 @Configuration
 public class AppConfig{
 
-	@Autowired
-	private JdbcTemplate jdbcTemplate;
+//	@Autowired
+//	private JdbcTemplate jdbcTemplate;
+
+	@Bean
+	public DataSource dataSource() {
+		HikariConfig config = new HikariConfig();
+		config.setJdbcUrl("jdbc:postgresql://webapp-db.c1ccmqm66qr5.us-east-1.rds.amazonaws.com:5432/webapp-db");
+		config.setUsername("postgres");
+		config.setPassword("123456789");
+		return new HikariDataSource(config);
+	}
+
+	@Bean
+	public JdbcTemplate jdbcTemplate(DataSource dataSource) {
+		return new JdbcTemplate(dataSource);
+	}
 
 	@PostConstruct
 	public void postConstruct() {
+		JdbcTemplate jdbcTemplate = jdbcTemplate(dataSource());
 		String createTablesSQL =
 				"CREATE TABLE IF NOT EXISTS Produto (" +
 						"id SERIAL PRIMARY KEY, " +
