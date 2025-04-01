@@ -92,7 +92,7 @@ Resources:
         - !Ref WebAppSecurityGroup
       UserData: !Base64 |
         #!/bin/bash
-        yum  install -y java-1.8.0-openjdk-devel wget
+        yum  install -y java-17-amazon-corretto wget
         java -version
         cd /usr/local
         wget https://archive.apache.org/dist/tomcat/tomcat-9/v9.0.43/bin/apache-tomcat-9.0.43.zip
@@ -362,6 +362,106 @@ Resources:
     Properties:
       Roles:
         - !Ref WebappRole
+
+  SQSQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 180
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt DeadLetterQueue.Arn
+        maxReceiveCount: 3
+      Tags:
+        - Key: StackId
+          Value: !Ref AWS::StackId
+
+  SQSQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref SQSQueue
+      PolicyDocument:
+        Id: AllowIncomingAccess
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS:
+                - !Ref AWS::AccountId
+            Action:
+              - sqs:SendMessage
+              - sqs:ReceiveMessage
+            Resource:
+              - !GetAtt SQSQueue.Arn
+          - Effect: Allow
+            Principal: '*'
+            Action:
+              - sqs:SendMessage
+            Resource:
+              - !GetAtt SQSQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn: !Ref SNSTopic
+
+  DeadLetterQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 160
+      Tags:
+        - Key: StackId
+          Value: !Ref AWS::StackId
+
+  SNSSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      TopicArn: !Ref SNSTopic
+      Endpoint: !GetAtt SQSQueue.Arn
+      Protocol: sqs
+      RawMessageDelivery: true
+
+  SQSQueueAgeOfOldestMessage:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: SQSQueue_AgeOfOldestMessage
+      AlarmDescription: Alarms if the SQS Queue has messages in it for too long
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt SQSQueue.QueueName
+      DatapointsToAlarm: 2
+      EvaluationPeriods: 3
+      MetricName: ApproximateAgeOfOldestMessage
+      Namespace: AWS/SQS
+      Period: 300
+      Statistic: Maximum
+      Threshold: 30
+      TreatMissingData: notBreaching
+      Unit: Seconds
+
+  DeadLetterQueueApproximateNumberOfMessagesVisible:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: DeadLetterQueue_ApproximateNumberOfMessagesVisible
+      AlarmDescription: Alarms if the Dead Letter Queue has too many messages
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt DeadLetterQueue.QueueName
+      DatapointsToAlarm: 2
+      EvaluationPeriods: 3
+      MetricName: ApproximateNumberOfMessagesVisible
+      Namespace: AWS/SQS
+      Period: 300
+      Statistic: Maximum
+      Threshold: 1
+      TreatMissingData: notBreaching
+
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Example SNSTopic
+      Tags:
+        - Key: Name
+          Value: !Join [ '-', [ 'SNSTopic', !Ref EnvironmentType ] ]
+
 
 Outputs:
   WebsiteURL:
